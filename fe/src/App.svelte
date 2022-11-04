@@ -106,6 +106,19 @@
   // $: currentPlayersSocketIds = currentPlayers.map(player => player.socketId)
   // $: isUserInTracker = currentPlayersSocketIds.includes(socket.id)
 
+  $: sortedByInitiativePlayers = currentRoom?.players?.sort(
+    (playerOne, playerTwo) => {
+      if (playerOne.initiativeRoll < playerTwo.initiativeRoll) {
+        return -1
+      }
+      if (playerOne.initiativeRoll > playerTwo.initiativeRoll) {
+        return -1
+      }
+
+      return 0
+    },
+  )
+
   $: console.log('socket connection', socketId)
 </script>
 
@@ -185,9 +198,9 @@
   {#if currentRoom}
     <h3>{currentRoom.roomId} - {currentRoom.owner.ownerName}'s room</h3>
 
-    {#if !currentRoom.players.length} No players yet! {/if}
+    {#if !sortedByInitiativePlayers.length} No players yet! {/if}
 
-    {#each currentRoom.players as player}
+    {#each sortedByInitiativePlayers as player}
       <div class="player-container">
         <p class="player-name">{player.characterName}</p>
         <p class="player-name">{player.initiativeRoll}</p>

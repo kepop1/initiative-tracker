@@ -14,8 +14,12 @@ const bcrypt = require("bcrypt");
   DONE - Make it room based for a group with owner and players
   DONE - Make it room based for a group with owner and players
   DONE Allow the people to leave a room
-  Update rooms when someone disconnects
-  Make it sort based on initiativeRoll
+  DONE Update rooms when someone disconnects
+  DONE Make it sort based on initiativeRoll
+  Deploy?
+  Refactor - Make TS
+  
+  BONUS
   Button to toggle the order / cycle through who's turn it is
   Should be able to change a room's password
   Owner should be able to add NPC's to initiative list
@@ -196,10 +200,10 @@ io.on("connection", (socket) => {
   // The client will automatically call the 'disconnect' event upon the `unload` event being triggered in a client
   socket.on("disconnect", (...something) => {
     // Remove the disconnected player, find via the socketId
-    console.log("player disconnected");
+    console.log("someone disconnected");
 
-    const newRooms = rooms.map((room) => {
-      // Is the user in the room?
+    rooms.forEach((room, roomIndex) => {
+      // Is the user in the room as a player?
       const roomPlayerIndex = room.players.findIndex(
         (player) => player.socketId === socket.id
       );
@@ -209,14 +213,49 @@ io.on("connection", (socket) => {
 
         newRoom.players.splice(roomPlayerIndex, 1);
 
-        return newRoom;
+        rooms.splice(roomIndex, 1, newRoom);
+
+        // No need to emit an update to the current socket, they've disconnected
+
+        io.to(newRoom.owner.socketId).emit("room_update", newRoom);
+
+        newRoom.players.forEach((player) => {
+          io.to(player.socketId).emit("room_update", newRoom);
+        });
+
+        // Is the user an owner of a room
+      } else if (room.owner.socketId === socket.id) {
+        let newRoom = { ...room };
+        const newOwner = newRoom.players[0];
+
+        // If there's a player left
+        if (newOwner) {
+          newRoom.players.splice(0, 1);
+          newRoom.owner = newOwner;
+          newRoom.owner.ownerName = newOwner.characterName;
+
+          rooms.splice(roomIndex, 1, newRoom);
+
+          console.log({ newRoom });
+
+          // No need to emit an update to the current socket, they've disconnected
+
+          io.to(newRoom.owner.socketId).emit("room_update", newRoom);
+
+          if (newRoom.players.length) {
+            newRoom.players.forEach((player) => {
+              io.to(player.socketId).emit("room_update", newRoom);
+            });
+          }
+        } else {
+          io.to(socket.id).emit("room_left");
+        }
+
+        // The user is just some random person
+      } else {
+        console.log("Someone disconnected that was not in a room");
       }
-
-      return room;
     });
-
-    // EMIT ROOMS?
-    // io.emit("players update", currentPlayers);
   });
 });
 
